@@ -21,7 +21,7 @@ const Map<String, String> TEST_CASES = const {'hello': '/hello'};
 
 main() async {
   var rootConfig = new Configuration.merge(Configuration.DEFAULT,
-      new Configuration(duration: new Duration(seconds: 5)));
+      new Configuration(duration: new Duration(minutes: 5)));
 
   Map<String, int> globalWins = {};
 

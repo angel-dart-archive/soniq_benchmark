@@ -1,7 +1,7 @@
-# Benchmark Results (auto-generated at 2017-06-08T06:28:03.432167Z UTC)
+# Benchmark Results (auto-generated at 2017-06-08T07:13:34.217886Z UTC)
 Simulating 25 concurrent connection(s).
 
-*All tests are run for 0:00:05.000000 (5000ms).*
+*All tests are run for 0:05:00.000000 (300000ms).*
 ## Framework(s) Tested (4)
   * `dart:io` (reference point, not a framework)
   * `angel`
@@ -15,43 +15,43 @@ Simulating 25 concurrent connection(s).
 ## hello
 Endpoint: `/hello`
 ### dart:io
-  * **requests/second:** 5756.60
-  * **total requests:** 28783
-  * **data read:** 16.2 kB
-  * **average latency:** 2.79ms
+  * **requests/second:** 9285.10
+  * **total requests:** 2785529
+  * **data read:** 2.24 MB
+  * **average latency:** 2.43ms
 ### angel
-  * **requests/second:** 4638.00
-  * **total requests:** 23190
-  * **data read:** 15.8 kB
-  * **average latency:** 3.83ms
+  * **requests/second:** 6630.32
+  * **total requests:** 1989095
+  * **data read:** 1.80 MB
+  * **average latency:** 3.58ms
 ### aqueduct
-  * **requests/second:** 921.00
-  * **total requests:** 4605
-  * **data read:** 3.39 kB
-  * **average latency:** 22.56ms
+  * **requests/second:** 830.02
+  * **total requests:** 249007
+  * **data read:** 129 kB
+  * **average latency:** 22.15ms
 ### shelf
-  * **requests/second:** 5058.40
-  * **total requests:** 25292
-  * **data read:** 16.6 kB
-  * **average latency:** 3.46ms
+  * **requests/second:** 7629.48
+  * **total requests:** 2288844
+  * **data read:** 2.04 MB
+  * **average latency:** 3.08ms
 ### Data Table
 * Sorted from fastest to slowest
 
 Name | Average Latency (microseconds)
 ---- | ----
-dart:io | 2792.44
-shelf | 3459.39
-angel | 3831.49
-aqueduct | 22562.28
+dart:io | 2426.32
+shelf | 3076.58
+angel | 3577.39
+aqueduct | 22152.44
 ### Conclusion
 After running hello, the fastest framework was `shelf`.
-  * Average latency of **3459.39us (3.46ms)**.
+  * Average latency of **3076.58us (3.08ms)**.
 # Rankings
   1. `shelf`
 ## Not ranked:
   * `angel`
   * `aqueduct`
 # Overall Conclusion
-After running 1 test(s) for 0:00:05.000000 each, the fastest framework was `shelf`, with 1 win(s).
+After running 1 test(s) for 0:05:00.000000 each, the fastest framework was `shelf`, with 1 win(s).
 
-*Done at 2017-06-08T02:28:28.728376 UTC.*
+*Done at 2017-06-08T03:33:40.181719 UTC.*

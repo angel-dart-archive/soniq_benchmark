@@ -1,5 +1,5 @@
-# Benchmark Overview (auto-generated at 2017-06-08T06:30:39.223882Z UTC)
-*All tests are run for 0:00:05.000000 (5000ms).*
+# Benchmark Overview (auto-generated at 2017-06-08T09:14:25.754936Z UTC)
+*All tests are run for 0:05:00.000000 (300000ms).*
 ## Framework(s) Tested (4)
   * `dart:io` (reference point, not a framework)
   * `angel`
