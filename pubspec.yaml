@@ -1,0 +1,8 @@
+name: angel_benchmark
+dependencies:
+  angel_common: ^1.0.0
+  angel_multiserver: ^1.0.0
+  aqueduct: ^2.0.0
+  coverage: ^0.9.2
+  shelf: ^0.6.7
+  soniq: ^0.0.0
