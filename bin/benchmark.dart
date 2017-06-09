@@ -1,29 +1,68 @@
-import 'dart:async';
 import 'dart:io';
 import 'package:angel_benchmark/src/angel/angel.dart' as angel_framework;
 import 'package:angel_benchmark/src/aqueduct/aqueduct.dart' as aqueduct;
 import 'package:angel_benchmark/src/io/io.dart' as dart_io;
+import 'package:angel_benchmark/src/common.dart';
 import 'package:angel_benchmark/src/shelf/shelf.dart' as shelf;
 import 'package:soniq/soniq.dart';
-
-typedef FutureOr<HttpServer> Framework();
-
-const List<int> LOADS = const [5, 10, 25, 50, 100, 250, 500, 1000];
+import 'package:tuple/tuple.dart';
 
 const Map<String, Framework> FRAMEWORKS = const {
   '!dart:io': dart_io.createServer,
-  'angel': angel,
-  'aqueduct': aqueduct.createServer,
-  'shelf': shelf.createServer
+  // Not going to count shelf as a framework, because it is a library.
+  // Where as Angel or Aqueduct provides functionality out of the box,
+  // Any complex features in shelf you basically implement yourself.
+  //
+  // In that sense, it's "raw".
+  '!shelf': shelf.createServer,
+  'angel': angel_framework.createServer,
+
+  // Aqueduct seems to not want to terminate, and crashes the Dart executable.
+  // So for now, we'll skip it, and just measure Angel?
+  // 'aqueduct': aqueduct.createServer
 };
 
-const Map<String, String> TEST_CASES = const {'hello': '/hello'};
+const Map<String, String> TEST_CASES = const {
+  'hello': '/hello',
+  'route_param': '/route_param/foo'
+};
 
-main() async {
+main(List<String> args) async {
+  // Create proper loads
+  List<int> LOADS = [];
+  var nIsolates = Platform.numberOfProcessors;
+
+  int prevLoad, currentLoad = 50;
+
+  do {
+    var load = currentLoad + (prevLoad ?? 0);
+    LOADS.add(load);
+    prevLoad = currentLoad;
+    currentLoad = load;
+  } while ((currentLoad / nIsolates) <=
+      250); // Limit to load 250x num. processor cores.
+
+  print('Running at the following loads: $LOADS');
+
+  // Choose running time
+  int runMs = 60000;
+
+  if (args.isNotEmpty) {
+    try {
+      runMs = int.parse(args.first);
+    } catch (e) {
+      // Ignore parse failure.
+    }
+  }
+
+  print('All tests will run for ${runMs}ms.');
+
   var rootConfig = new Configuration.merge(Configuration.DEFAULT,
-      new Configuration(duration: new Duration(minutes: 5)));
+      new Configuration(duration: new Duration(milliseconds: runMs)));
+  print('Available cores: ${nIsolates}');
 
   Map<String, int> globalWins = {};
+  Map<String, List<double>> averageLatencies = {};
 
   for (int load in LOADS) {
     print(
@@ -56,7 +95,7 @@ main() async {
       ..writeln('## Contents')
       ..writeln('  * [Test Cases](#test-cases)')
       ..writeln('  * [Rankings](#rankings)')
-      ..writeln('  * [Conclusion](#conclusion)');
+      ..writeln('  * [Overall Conclusion](#overall-conclusion)');
 
     sink.writeln('# Test Cases');
 
@@ -64,21 +103,24 @@ main() async {
       Map<String, double> timing = {};
       var uri = TEST_CASES[testCaseName];
       sink.writeln('## $testCaseName\nEndpoint: `$uri`');
+      print('Testing `$testCaseName` at "$uri"');
 
       for (var frameworkName in FRAMEWORKS.keys) {
         var generator = FRAMEWORKS[frameworkName];
         var name = frameworkName.startsWith('!')
             ? frameworkName.substring(1)
             : frameworkName;
-        var server = await generator() as HttpServer;
-        var baseUrl = 'http://${server.address.address}:${server.port}';
+        Tuple2<String, Closer> tuple =
+            await generator(nIsolates);
+        var baseUrl = tuple.item1;
+        var closer = tuple.item2;
         print('$name listening at $baseUrl');
 
         var config = new Configuration.merge(
             loadConfig, new Configuration(url: '$baseUrl$uri'));
         var runner = new Runner(config);
         var report = await runner.run();
-        await server.close(force: true);
+        await closer();
 
         sink
           ..writeln('### $name')
@@ -101,6 +143,11 @@ main() async {
           sink.writeln('  * **socket errors:** ${report.socketErrors}');
 
         timing[frameworkName] = report.averageLatency;
+
+        if (averageLatencies.containsKey(frameworkName))
+          averageLatencies[frameworkName].add(report.averageLatency);
+        else
+          averageLatencies[frameworkName] = [report.averageLatency];
       }
 
       if (timing.isNotEmpty) {
@@ -215,7 +262,18 @@ main() async {
   sink.writeln(
       '*All tests are run for ${rootConfig.duration} (${rootConfig.duration
           .inMilliseconds}ms).*');
-  sink.writeln('## Framework(s) Tested (${FRAMEWORKS.length})');
+
+  sink
+    ..writeln('\nThis benchmark was run on a system with the following specs:')
+    ..writeln('  * **OS:** ${Platform.operatingSystem}')
+    ..writeln(
+        '  * **Number of Processor Cores:** ${Platform.numberOfProcessors}')
+    ..writeln('  * **Dart SDK Version:** ${Platform.version}');
+
+  sink
+    ..writeln('## Framework(s) Tested (${FRAMEWORKS.length})')
+    ..writeln(
+        'Each framework ran concurrently in ${nIsolates} isolate(s).\n');
 
   for (var frameworkName in FRAMEWORKS.keys) {
     if (!frameworkName.startsWith('!'))
@@ -237,8 +295,9 @@ main() async {
     sink.writeln(
         'These are the fastest frameworks, ordered by how many load simulations they won:');
     for (int i = 0; i < rankings.length; i++) {
+      var avg = average(averageLatencies[rankings[i]]);
       sink.writeln(
-          '  ${i + 1}. `${rankings[i]}` (${globalWins[rankings[i]]} win(s))');
+          '  ${i + 1}. `${rankings[i]}` (${globalWins[rankings[i]]} win(s)) - **average ${(avg / 1000).toStringAsFixed(2)}ms**');
     }
   }
 
@@ -251,14 +310,25 @@ main() async {
     sink.writeln('Here they are, in no particular order:');
 
     for (var loser in losers) {
-      sink.writeln('  * `$loser`');
+      var avg = average(averageLatencies[loser]);
+      sink.writeln(
+          '  * `$loser` - **average ${(avg / 1000).toStringAsFixed(2)}ms**');
+    }
+  }
+
+  var references = FRAMEWORKS.keys.where((k) => k.startsWith('!'));
+
+  if (references.isNotEmpty) {
+    sink.writeln('\nHere are the average latencies of the reference point(s):');
+
+    for (var ref in references) {
+      var avg = average(averageLatencies[ref]);
+      var name = ref.substring(1);
+      sink.writeln(
+          '`$name` - **average ${(avg / 1000).toStringAsFixed(2)}ms**');
     }
   }
 
   await sink.close();
-}
-
-Future<HttpServer> angel() async {
-  var app = await angel_framework.createServer();
-  return await app.startServer();
+  print('Benchmarking done!!!');
 }
